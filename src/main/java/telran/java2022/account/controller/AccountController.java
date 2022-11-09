@@ -1,10 +1,13 @@
 package telran.java2022.account.controller;
 
+import java.util.Base64;
+
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,9 +30,17 @@ public class AccountController {
 		return userService.register(userRegisterDto);
 	}
 	
+//	@PostMapping("/login")
+//	public UserDto login(@RequestBody LoginPasswordDto loginPasswordDto) {
+//		return userService.login(loginPasswordDto);
+//	}
+	
 	@PostMapping("/login")
-	public UserDto login(@RequestBody LoginPasswordDto loginPasswordDto) {
-		return userService.login(loginPasswordDto);
+	public UserDto login(@RequestHeader("Authorization") String token) {
+		String[] basicAuth = token.split(" ");
+		String decode = new String(Base64.getDecoder().decode(basicAuth[1]));
+		String[] credentials = decode.split(":");
+		return userService.getUser(credentials[0]);
 	}
 	
 	@DeleteMapping("/user/{login}")

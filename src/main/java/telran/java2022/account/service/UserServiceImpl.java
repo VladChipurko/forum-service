@@ -10,6 +10,7 @@ import telran.java2022.account.dto.RolesChangeDto;
 import telran.java2022.account.dto.UserDto;
 import telran.java2022.account.dto.UserRegisterDto;
 import telran.java2022.account.dto.UserUpdateDto;
+import telran.java2022.account.dto.exceptions.UserExistException;
 import telran.java2022.account.dto.exceptions.UserNotFoundException;
 import telran.java2022.account.dto.exceptions.UserWrongPasswordException;
 import telran.java2022.account.model.User;
@@ -26,6 +27,9 @@ public class UserServiceImpl implements UserService{
 		User user = new User(userRegisterDto.getLogin(), 
 				userRegisterDto.getPassword(), userRegisterDto.getFirstName(), 
 				userRegisterDto.getLastName());
+		if(userRepository.existsById(user.getLogin())) {
+			throw new UserExistException(user.getLogin());
+		}
 		user = userRepository.save(user);
 		return modelMapper.map(user, UserDto.class);
 	}
@@ -87,6 +91,13 @@ public class UserServiceImpl implements UserService{
 		user.setPassword(loginPasswordDto.getPassword());;
 		userRepository.save(user);
 		
+	}
+
+	@Override
+	public UserDto getUser(String login) {
+		User user = userRepository.findById(login)
+				.orElseThrow(() -> new UserNotFoundException(login));
+		return modelMapper.map(user, UserDto.class);
 	}
 
 }

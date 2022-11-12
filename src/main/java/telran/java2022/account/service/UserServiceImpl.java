@@ -1,18 +1,17 @@
 package telran.java2022.account.service;
 
+import org.mindrot.jbcrypt.BCrypt;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import telran.java2022.account.dao.UserRepository;
-import telran.java2022.account.dto.LoginPasswordDto;
 import telran.java2022.account.dto.RolesChangeDto;
 import telran.java2022.account.dto.UserDto;
 import telran.java2022.account.dto.UserRegisterDto;
 import telran.java2022.account.dto.UserUpdateDto;
 import telran.java2022.account.dto.exceptions.UserExistException;
 import telran.java2022.account.dto.exceptions.UserNotFoundException;
-import telran.java2022.account.dto.exceptions.UserWrongPasswordException;
 import telran.java2022.account.model.User;
 
 @Service
@@ -30,17 +29,9 @@ public class UserServiceImpl implements UserService{
 		if(userRepository.existsById(user.getLogin())) {
 			throw new UserExistException(user.getLogin());
 		}
+		String password = BCrypt.hashpw(userRegisterDto.getPassword(), BCrypt.gensalt());
+		user.setPassword(password);
 		user = userRepository.save(user);
-		return modelMapper.map(user, UserDto.class);
-	}
-
-	@Override
-	public UserDto login(LoginPasswordDto loginPasswordDto) {
-		User user = userRepository.findById(loginPasswordDto.getLogin())
-				.orElseThrow(() -> new UserNotFoundException(loginPasswordDto.getLogin()));
-		if(!user.getPassword().equals(loginPasswordDto.getPassword())) {
-			throw new UserWrongPasswordException();
-		}
 		return modelMapper.map(user, UserDto.class);
 	}
 
@@ -85,10 +76,11 @@ public class UserServiceImpl implements UserService{
 	}
 
 	@Override
-	public void changePassword(LoginPasswordDto loginPasswordDto) {
-		User user = userRepository.findById(loginPasswordDto.getLogin())
-				.orElseThrow(() -> new UserNotFoundException(loginPasswordDto.getLogin()));
-		user.setPassword(loginPasswordDto.getPassword());;
+	public void changePassword(String login, String newPassword) {
+		User user = userRepository.findById(login)
+				.orElseThrow(() -> new UserNotFoundException(login));
+		String password = BCrypt.hashpw(newPassword, BCrypt.gensalt());
+		user.setPassword(password);
 		userRepository.save(user);
 		
 	}

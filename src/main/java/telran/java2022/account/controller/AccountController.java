@@ -1,7 +1,6 @@
 package telran.java2022.account.controller;
 
-import java.util.Base64;
-
+import java.security.Principal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import lombok.RequiredArgsConstructor;
-import telran.java2022.account.dto.LoginPasswordDto;
 import telran.java2022.account.dto.RolesChangeDto;
 import telran.java2022.account.dto.UserDto;
 import telran.java2022.account.dto.UserRegisterDto;
@@ -30,17 +28,9 @@ public class AccountController {
 		return userService.register(userRegisterDto);
 	}
 	
-//	@PostMapping("/login")
-//	public UserDto login(@RequestBody LoginPasswordDto loginPasswordDto) {
-//		return userService.login(loginPasswordDto);
-//	}
-	
 	@PostMapping("/login")
-	public UserDto login(@RequestHeader("Authorization") String token) {
-		String[] basicAuth = token.split(" ");
-		String decode = new String(Base64.getDecoder().decode(basicAuth[1]));
-		String[] credentials = decode.split(":");
-		return userService.getUser(credentials[0]);
+	public UserDto login(Principal principal) {
+		return userService.getUser(principal.getName());
 	}
 	
 	@DeleteMapping("/user/{login}")
@@ -63,9 +53,9 @@ public class AccountController {
 		return userService.deleteRole(login, role);
 	}
 	
-	@PutMapping("/user/password")
-	void changePassword(@RequestBody LoginPasswordDto loginPasswordDto) {
-		userService.changePassword(loginPasswordDto);
+	@PutMapping("/password")
+	public void changePassword (Principal principal, @RequestHeader("X-Password") String newPassword) {
+		userService.changePassword(principal.getName(), newPassword);
 	}
 
 }

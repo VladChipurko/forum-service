@@ -1,6 +1,7 @@
 package telran.java2022.security.filter;
 
 import java.io.IOException;
+import java.security.Principal;
 import java.util.Base64;
 
 import javax.servlet.Filter;
@@ -9,17 +10,20 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 
+import org.mindrot.jbcrypt.BCrypt;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
 import telran.java2022.account.dao.UserRepository;
-import telran.java2022.account.dto.exceptions.UserNotFoundException;
 import telran.java2022.account.model.User;
 
 @Component
 @RequiredArgsConstructor
+@Order(10)
 public class AuthenticationFilter implements Filter {
 	
 	final UserRepository userRepository;
@@ -35,17 +39,19 @@ public class AuthenticationFilter implements Filter {
 				response.sendError(401);
 				return;
 			}
-			String[] credentials = getCredentialsFromToken(token);
-			if(!userRepository.existsById(credentials[0])) {
-				response.sendError(404, "User with login " + credentials[0] + " not exist");
+			String[] credentials;
+			try {
+				credentials = getCredentialsFromToken(token);
+			} catch (Exception e) {
+				response.sendError(401, "Invalid token");
 				return;
 			}
-			User user = userRepository.findById(credentials[0])
-					.orElseThrow(() -> new UserNotFoundException(credentials[0]));
-			if(!user.getPassword().equals(credentials[1])) {
-				response.sendError(401, "Wrong password");
+			User user = userRepository.findById(credentials[0]).orElse(null);
+			if(user == null || !BCrypt.checkpw(credentials[1], user.getPassword())) {
+				response.sendError(401, "login or password is invalid");
 				return;
 			}
+			request = new WrappedRequest(request, user.getLogin());
 		}
 		chain.doFilter(request, response);
 	}
@@ -58,7 +64,25 @@ public class AuthenticationFilter implements Filter {
 	}
 
 	private boolean checkEndPoint(String method, String servletPath) {
-		return !("POST".equalsIgnoreCase(method) && servletPath.equals("/account/register"));
+		return (!("POST".equalsIgnoreCase(method) && servletPath.matches("/account/register/?")))
+				&& (!("POST".equalsIgnoreCase(method) && servletPath.matches("/forum/posts/\\w+/?")))
+				&& (!("GET".equalsIgnoreCase(method) && servletPath.matches("/forum/posts/author/\\w+/?")));
+	}
+	
+	private class WrappedRequest extends HttpServletRequestWrapper{
+
+		String login;
+		
+		public WrappedRequest(HttpServletRequest request, String login) {
+			super(request);
+			this.login = login;
+		}
+		
+		@Override
+		public Principal getUserPrincipal() {
+			return () -> login;
+		}
+		
 	}
 
 }

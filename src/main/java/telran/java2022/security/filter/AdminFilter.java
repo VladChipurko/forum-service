@@ -14,14 +14,16 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
-import telran.java2022.account.dao.UserRepository;
-import telran.java2022.account.model.User;
+//import telran.java2022.account.dao.UserRepository;
+//import telran.java2022.account.model.User;
+import telran.java2022.security.context.SecurityContext;
 @Component
 @Order(20)
 @RequiredArgsConstructor
 public class AdminFilter implements Filter {
 	
-	final UserRepository userRepository;
+//	final UserRepository userRepository;
+	final SecurityContext securityContext;
 
 	@Override
 	public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
@@ -29,8 +31,9 @@ public class AdminFilter implements Filter {
 		HttpServletRequest request = (HttpServletRequest) req;
 		HttpServletResponse response = (HttpServletResponse) resp;
 		if(checkEndPoint(request.getMethod(), request.getServletPath())) {
-			User user = userRepository.findById(request.getUserPrincipal()
-					.getName()).get();
+//			User user = userRepository.findById(request.getUserPrincipal()
+//					.getName()).get();
+			telran.java2022.security.context.User user = securityContext.getUser(request.getUserPrincipal().getName());
 			if(!user.getRoles().contains("Admin".toUpperCase())) {
 				response.sendError(403);
 				return;

@@ -14,15 +14,17 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
-import telran.java2022.account.dao.UserRepository;
-import telran.java2022.account.model.User;
+//import telran.java2022.account.dao.UserRepository;
+//import telran.java2022.account.model.User;
+import telran.java2022.security.context.SecurityContext;
 
 @Component
 @RequiredArgsConstructor
 @Order(30)
 public class AccountOwnerFilter implements Filter {
 	
-	final UserRepository userRepository;
+//	final UserRepository userRepository;
+	final SecurityContext securityContext;
 
 	@Override
 	public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
@@ -31,15 +33,16 @@ public class AccountOwnerFilter implements Filter {
 		HttpServletResponse response = (HttpServletResponse) resp;
 		if(checkEndPoint(request.getServletPath())) {
 			String[] path = request.getServletPath().split("/");
-			User user = userRepository.findById(request.getUserPrincipal()
-					.getName()).get();
+//			User user = userRepository.findById(request.getUserPrincipal()
+//					.getName()).get();
+			telran.java2022.security.context.User user = securityContext.getUser(request.getUserPrincipal().getName());
 			if("PUT".equalsIgnoreCase(request.getMethod()) 
-					&& (!user.getLogin().equalsIgnoreCase(path[path.length - 1]))) {
+					&& (!user.getUserName().equalsIgnoreCase(path[path.length - 1]))) {
 				response.sendError(403, "not owner");
 				return;
 			}
 			if("DELETE".equalsIgnoreCase(request.getMethod()) 
-					&&(!user.getLogin().equalsIgnoreCase(path[path.length - 1]) 
+					&&(!user.getUserName().equalsIgnoreCase(path[path.length - 1]) 
 					&& !user.getRoles().contains("Admin".toUpperCase()))) {
 				response.sendError(403, "not owner or administrator");
 				return;

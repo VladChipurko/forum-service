@@ -14,16 +14,11 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
-import telran.java2022.account.dao.UserRepository;
-import telran.java2022.forum.dao.ForumRepository;
 
 @Component
 @RequiredArgsConstructor
 @Order(50)
 public class AddPostAndCommentFilter implements Filter {
-
-	final ForumRepository forumRepository;
-	final UserRepository userRepository;
 	
 	@Override
 	public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)

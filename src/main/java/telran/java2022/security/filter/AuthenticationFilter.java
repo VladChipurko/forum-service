@@ -20,6 +20,8 @@ import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 import telran.java2022.account.dao.UserRepository;
 import telran.java2022.account.model.User;
+import telran.java2022.security.context.SecurityContext;
+import telran.java2022.security.service.SessionService;
 
 @Component
 @RequiredArgsConstructor
@@ -27,7 +29,9 @@ import telran.java2022.account.model.User;
 public class AuthenticationFilter implements Filter {
 	
 	final UserRepository userRepository;
-
+	final SecurityContext securityContext;
+	final SessionService sessionService;
+	
 	@Override
 	public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
 			throws IOException, ServletException {
@@ -35,26 +39,80 @@ public class AuthenticationFilter implements Filter {
 		HttpServletResponse response = (HttpServletResponse) resp;
 		if(checkEndPoint(request.getMethod(), request.getServletPath())) {
 			String token = request.getHeader("Authorization");
-			if(token == null) {
+			String sessionId = request.getSession().getId();
+			User userSession = sessionService.getUser(sessionId);
+			User user = null;
+			if(token != null) {
+				String[] credentials;
+				try {
+					credentials = getCredentialsFromToken(token);
+				} catch (Exception e) {
+					response.sendError(401, "Invalid token");
+					return;
+				}
+				user = userRepository.findById(credentials[0]).orElse(null);
+				if(user == null || !BCrypt.checkpw(credentials[1], user.getPassword())) {
+					response.sendError(401, "login or password is invalid");
+					return;
+				}
+				sessionService.addUser(sessionId, user);
+			} else if(token == null && userSession != null) {
+				user = userSession;
+			} else if(token == null && userSession == null){
 				response.sendError(401);
-				return;
+				return;	
 			}
-			String[] credentials;
-			try {
-				credentials = getCredentialsFromToken(token);
-			} catch (Exception e) {
-				response.sendError(401, "Invalid token");
-				return;
-			}
-			User user = userRepository.findById(credentials[0]).orElse(null);
-			if(user == null || !BCrypt.checkpw(credentials[1], user.getPassword())) {
-				response.sendError(401, "login or password is invalid");
-				return;
-			}
+			
 			request = new WrappedRequest(request, user.getLogin());
+			telran.java2022.security.context.User user2 = telran.java2022.security.context.User.builder()
+					.userName(user.getLogin())
+					.password(user.getPassword())
+					.roles(user.getRoles())
+					.build();
+			securityContext.addUser(user2);
 		}
 		chain.doFilter(request, response);
 	}
+
+//	@Override
+//	public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
+//			throws IOException, ServletException {
+//		HttpServletRequest request = (HttpServletRequest) req;
+//		HttpServletResponse response = (HttpServletResponse) resp;
+//		if(checkEndPoint(request.getMethod(), request.getServletPath())) {
+//			String sessionId = request.getSession().getId();
+//			User user = sessionService.getUser(sessionId);
+//			if(user == null) {
+//				String token = request.getHeader("Authorization");
+//				if(token == null) {
+//					response.sendError(401);
+//					return;
+//				}
+//				String[] credentials;
+//				try {
+//					credentials = getCredentialsFromToken(token);
+//				} catch (Exception e) {
+//					response.sendError(401, "Invalid token");
+//					return;
+//				}
+//				user = userRepository.findById(credentials[0]).orElse(null);
+//				if(user == null || !BCrypt.checkpw(credentials[1], user.getPassword())) {
+//					response.sendError(401, "login or password is invalid");
+//					return;
+//				}
+//				sessionService.addUser(sessionId, user);
+//			}
+//			
+//			request = new WrappedRequest(request, user.getLogin());
+//			telran.java2022.security.context.User user2 = telran.java2022.security.context.User.builder()
+//					.userName(user.getLogin())
+//					.password(user.getPassword())
+//					.roles(user.getRoles())
+//					.build();
+//			securityContext.addUser(user2);
+//		}
+//		chain.doFilter(request, response);
+//	}
 
 	private String[] getCredentialsFromToken(String token) {
 		String[] basicAuth = token.split(" ");
